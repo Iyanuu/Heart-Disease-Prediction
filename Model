@@ -1,0 +1,14 @@
+import numpy as np
+import matplotlib.pyplot as py
+import pandas as pd
+import tensorflow as tf
+import seaborn as sns
+
+from tensorflow.keras import layers
+from matplotlib import colors
+
+dataset = pd.read_csv('processed.cleveland.csv')
+
+print(dataset.shape)
+
+dataset.head()
