@@ -81,7 +81,7 @@ print(f"FastingBS outliers are values < {Lower_limit} or > {Upper_upper}")
 IQR = dataset.MaxHR.quantile(0.75) - dataset.MaxHR.quantile(0.25)
 Lower_limit = dataset.MaxHR.quantile(0.25) - (IQR*3)
 Upper_upper = dataset.MaxHR.quantile(0.75) + (IQR*3)
-print(f"MaxHR outliers are values < {Lower_limit} or > {Upper_upper}"
+print(f"MaxHR outliers are values < {Lower_limit} or > {Upper_upper}")
 
 # Outliers for Oldpeak
 IQR = dataset.Oldpeak.quantile(0.75) - dataset.Oldpeak.quantile(0.25)
@@ -107,3 +107,12 @@ dataset['MaxHR'] = Max_value(dataset,'MaxHR',200)
 dataset['Oldpeak'] = Max_value(dataset,'Oldpeak',200.0)
 
 dataset.describe()
+
+dataset = pd.get_dummies(dataset, columns=["Sex","ChestPainType","RestingECG","ExerciseAngina","ST_Slope"])
+scaler = StandardScaler()
+numerical_features = ["Age","RestingBP","Cholesterol","FastingBS","MaxHR","Oldpeak"]
+dataset[numerical_features] = scaler.fit_transform(dataset[numerical_features])
+py.figure(figsize=(20, 16))
+sns.heatmap(dataset.corr(), annot=True, cmap='coolwarm', fmt='.2f')
+py.title('Correlation Matrix')
+py.show()
