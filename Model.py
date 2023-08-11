@@ -119,37 +119,48 @@ py.show()
 
 
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedKFold
 
+# fix random seed for reproducibility
+seed = 7
+np.random.seed(seed)
 #Split dataset
 X = dataset.drop(['HeartDisease'], axis=1)
 y = dataset['HeartDisease']
 
 #Test split into 70% training data and 30% test data
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
-
-#Model 1
-model = Sequential()
-#3 layers
-model.add(Dense(12, input_dim=20, activation='relu'))
-model.add(Dense(8, activation='relu'))
-model.add(Dense(1, activation='sigmoid'))
+# define 10-fold cross validation test harness
+kfold = StratifiedKFold(n_splits=10, shuffle=True, random_state=seed)
+cvscores = []
+for train, test in kfold.split(X, y):
+#Model 3
+  model = Sequential()
+#5 layers
+  model.add(Dense(12, input_dim=20, activation='relu'))
+  model.add(Dense(12, input_dim=20, activation='sigmoid'))
+  model.add(Dense(12, activation='relu'))
+  model.add(Dense(10, activation='relu'))
+  model.add(Dense(8, activation='sigmoid'))
+  model.add(Dense(8, activation='sigmoid'))
+  model.add(Dense(6, activation='sigmoid'))
+  model.add(Dense(3, activation='sigmoid'))
+  model.add(Dense(3, activation='sigmoid'))
+  model.add(Dense(1, activation='sigmoid'))
 #Compile 
 model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 #Model Fit and Evaluation
-model.fit(X, y, epochs=150, batch_size=10)
-_, accuracy = model.evaluate(X_test, y_test)
+model.fit(X_train, y_train, validation_data=(X_test,y_test), epochs=150, batch_size=10)
+#_, accuracy = model.evaluate(X_test, y_test)
 
-print('Accuracy: %.2f' % (accuracy*100))
+#print('Accuracy: %.2f' % (accuracy*100))
 
-from sklearn.model_selection import train_test_split
 
-#Split dataset
-X = dataset.drop(['HeartDisease'], axis=1)
-y = dataset['HeartDisease']
-
-#Test split into 70% training data and 30% test data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+scores = model.evaluate(X_test, y_test, verbose=0)
+print("%s: %.2f%%" % (model.metrics_names[1], scores[1]*100))
+cvscores.append(scores[1] * 100)
+print("%.2f%% (+/- %.2f%%)" % (np.mean(cvscores), np.std(cvscores)))
 
 #Model 2
 model = Sequential()
