@@ -116,3 +116,87 @@ py.figure(figsize=(20, 16))
 sns.heatmap(dataset.corr(), annot=True, cmap='coolwarm', fmt='.2f')
 py.title('Correlation Matrix')
 py.show()
+
+
+from sklearn.model_selection import train_test_split
+
+#Split dataset
+X = dataset.drop(['HeartDisease'], axis=1)
+y = dataset['HeartDisease']
+
+#Test split into 70% training data and 30% test data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+
+#Model 1
+model = Sequential()
+#3 layers
+model.add(Dense(12, input_dim=20, activation='relu'))
+model.add(Dense(8, activation='relu'))
+model.add(Dense(1, activation='sigmoid'))
+#Compile 
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+#Model Fit and Evaluation
+model.fit(X, y, epochs=150, batch_size=10)
+_, accuracy = model.evaluate(X_test, y_test)
+
+print('Accuracy: %.2f' % (accuracy*100))
+
+from sklearn.model_selection import train_test_split
+
+#Split dataset
+X = dataset.drop(['HeartDisease'], axis=1)
+y = dataset['HeartDisease']
+
+#Test split into 70% training data and 30% test data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+
+#Model 2
+model = Sequential()
+#5 layers
+model.add(Dense(12, input_dim=20, activation='relu'))
+model.add(Dense(12, input_dim=20, activation='sigmoid'))
+model.add(Dense(8, activation='relu'))
+model.add(Dense(4, activation='relu'))
+model.add(Dense(1, activation='sigmoid'))
+#Compile 
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+#Model Fit and Evaluation
+model.fit(X, y, epochs=150, batch_size=10)
+_, accuracy = model.evaluate(X_test, y_test)
+
+print('Accuracy: %.2f' % (accuracy*100))
+
+from sklearn.model_selection import train_test_split
+
+#Split dataset
+X = dataset.drop(['HeartDisease'], axis=1)
+y = dataset['HeartDisease']
+
+#Test split into 70% training data and 30% test data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+
+#Model 3
+model = Sequential()
+#5 layers
+model.add(Dense(12, input_dim=20, activation='relu'))
+model.add(Dense(12, input_dim=20, activation='sigmoid'))
+model.add(Dense(12, activation='relu'))
+model.add(Dense(10, activation='relu'))
+model.add(Dense(8, activation='sigmoid'))
+model.add(Dense(8, activation='sigmoid'))
+model.add(Dense(6, activation='sigmoid'))
+model.add(Dense(3, activation='sigmoid'))
+model.add(Dense(3, activation='sigmoid'))
+model.add(Dense(1, activation='sigmoid'))
+#Compile 
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+#Model Fit and Evaluation
+model.fit(X, y, epochs=150, batch_size=10)
+_, accuracy = model.evaluate(X_test, y_test)
+
+print('Accuracy: %.2f' % (accuracy*100))
+
+
