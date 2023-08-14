@@ -8,6 +8,7 @@ import seaborn as sns
 
 #from tensorflow.keras import layers
 from matplotlib import colors
+from sklearn.preprocessing import StandardScaler
 
 dataset = pd.read_csv('heart.csv')
 
@@ -118,96 +119,415 @@ py.title('Correlation Matrix')
 py.show()
 
 
-from sklearn.model_selection import train_test_split
+######################################################### Model 1 ###############################################
+from keras.regularizers import l2
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, cohen_kappa_score, roc_auc_score, average_precision_score
+import numpy as np
 from sklearn.model_selection import StratifiedKFold
+from keras.models import Sequential
+from keras.layers import Dense
 
-# fix random seed for reproducibility
-seed = 7
-np.random.seed(seed)
-#Split dataset
+
+# Reset indices of the dataset
+dataset.reset_index(drop=True, inplace=True)
+
+# split into input (X) and output (Y) variables
 X = dataset.drop(['HeartDisease'], axis=1)
 y = dataset['HeartDisease']
 
-#Test split into 70% training data and 30% test data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
-# define 10-fold cross validation test harness
-kfold = StratifiedKFold(n_splits=10, shuffle=True, random_state=seed)
-cvscores = []
-for train, test in kfold.split(X, y):
-#Model 3
-  model = Sequential()
-#5 layers
-  model.add(Dense(12, input_dim=20, activation='relu'))
-  model.add(Dense(12, input_dim=20, activation='sigmoid'))
-  model.add(Dense(12, activation='relu'))
-  model.add(Dense(10, activation='relu'))
-  model.add(Dense(8, activation='sigmoid'))
-  model.add(Dense(8, activation='sigmoid'))
-  model.add(Dense(6, activation='sigmoid'))
-  model.add(Dense(3, activation='sigmoid'))
-  model.add(Dense(3, activation='sigmoid'))
-  model.add(Dense(1, activation='sigmoid'))
-#Compile 
-model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+# Initialize 10-fold StratifiedKFold cross-validation
+cv_outer = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
 
-#Model Fit and Evaluation
-model.fit(X_train, y_train, validation_data=(X_test,y_test), epochs=150, batch_size=10)
-#_, accuracy = model.evaluate(X_test, y_test)
+# Lists to store evaluation metrics for each fold
+accuracy_scores = []
+confusion_matrices = []
+auc_pr_scores = []
+cohen_kappa_scores = []
+f1_scores = []
+recall_scores = []
+precision_scores = []
 
-#print('Accuracy: %.2f' % (accuracy*100))
+# Perform nested cross-validation
+for train_index, val_index in cv_outer.split(X, y):
+    X_train_fold, X_val_fold = X.loc[train_index], X.loc[val_index]
+    y_train_fold, y_val_fold = y.loc[train_index], y.loc[val_index]
 
+    # Create a function for Model 1
+    def create_model():
+        model = Sequential()
+        model.add(Dense(units=128, activation='relu', input_shape=(20,), kernel_regularizer=l2(0.01)))
+        model.add(Dense(units=64, activation='relu', kernel_regularizer=l2(0.01)))
+        model.add(Dense(units=32, activation='relu', kernel_regularizer=l2(0.01)))
+        model.add(Dense(units=1, activation='sigmoid'))
+        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+        return model
 
-scores = model.evaluate(X_test, y_test, verbose=0)
-print("%s: %.2f%%" % (model.metrics_names[1], scores[1]*100))
-cvscores.append(scores[1] * 100)
-print("%.2f%% (+/- %.2f%%)" % (np.mean(cvscores), np.std(cvscores)))
+    # Create the model
+    model = create_model()
 
-#Model 2
-model = Sequential()
-#5 layers
-model.add(Dense(12, input_dim=20, activation='relu'))
-model.add(Dense(12, input_dim=20, activation='sigmoid'))
-model.add(Dense(8, activation='relu'))
-model.add(Dense(4, activation='relu'))
-model.add(Dense(1, activation='sigmoid'))
-#Compile 
-model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+    # Fit the model on the training data
+    model.fit(X_train_fold, y_train_fold, epochs=10, batch_size=32, verbose=0)
 
-#Model Fit and Evaluation
-model.fit(X, y, epochs=150, batch_size=10)
-_, accuracy = model.evaluate(X_test, y_test)
+    # Predict on validation data
+    y_pred = model.predict(X_val_fold)
 
-print('Accuracy: %.2f' % (accuracy*100))
+    # Convert probabilities to binary predictions
+    y_pred_binary = np.round(y_pred)
 
-from sklearn.model_selection import train_test_split
+    # Calculate evaluation metrics
+    accuracy = model.evaluate(X_val_fold, y_val_fold, verbose=0)[1]
+    confusion_matrix_val = confusion_matrix(y_val_fold, y_pred_binary)
+    auc_pr = average_precision_score(y_val_fold, y_pred)
+    cohen_kappa = cohen_kappa_score(y_val_fold, y_pred_binary)
+    f1 = f1_score(y_val_fold, y_pred_binary)
+    recall = recall_score(y_val_fold, y_pred_binary)
+    precision = precision_score(y_val_fold, y_pred_binary)
 
-#Split dataset
+    accuracy_scores.append(accuracy)
+    confusion_matrices.append(confusion_matrix_val)
+    auc_pr_scores.append(auc_pr)
+    cohen_kappa_scores.append(cohen_kappa)
+    f1_scores.append(f1)
+    recall_scores.append(recall)
+    precision_scores.append(precision)
+
+# Calculate mean values for evaluation metrics across all folds
+mean_accuracy = np.mean(accuracy_scores)
+mean_auc_pr = np.mean(auc_pr_scores)
+mean_cohen_kappa = np.mean(cohen_kappa_scores)
+mean_f1 = np.mean(f1_scores)
+mean_recall = np.mean(recall_scores)
+mean_precision = np.mean(precision_scores)
+
+print(f"Mean Accuracy: {mean_accuracy:.4f}")
+print(f"Mean AUC-PR: {mean_auc_pr:.4f}")
+print(f"Mean Cohen's Kappa: {mean_cohen_kappa:.4f}")
+print(f"Mean F1-Score: {mean_f1:.4f}")
+print(f"Mean Recall: {mean_recall:.4f}")
+print(f"Mean Precision: {mean_precision:.4f}")
+
+######################################################### Model 2 ###############################################
+from keras.regularizers import l2
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, cohen_kappa_score, roc_auc_score, average_precision_score
+import numpy as np
+from sklearn.model_selection import StratifiedKFold
+from keras.models import Sequential
+from keras.layers import Dense
+
+# Reset indices of the dataset
+dataset.reset_index(drop=True, inplace=True)
+
+# split into input (X) and output (Y) variables
 X = dataset.drop(['HeartDisease'], axis=1)
 y = dataset['HeartDisease']
 
-#Test split into 70% training data and 30% test data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+# Initialize 10-fold StratifiedKFold cross-validation
+cv_outer = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
 
-#Model 3
-model = Sequential()
-#5 layers
-model.add(Dense(12, input_dim=20, activation='relu'))
-model.add(Dense(12, input_dim=20, activation='sigmoid'))
-model.add(Dense(12, activation='relu'))
-model.add(Dense(10, activation='relu'))
-model.add(Dense(8, activation='sigmoid'))
-model.add(Dense(8, activation='sigmoid'))
-model.add(Dense(6, activation='sigmoid'))
-model.add(Dense(3, activation='sigmoid'))
-model.add(Dense(3, activation='sigmoid'))
-model.add(Dense(1, activation='sigmoid'))
-#Compile 
-model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+# Lists to store evaluation metrics for each fold
+accuracy_scores = []
+confusion_matrices = []
+auc_pr_scores = []
+cohen_kappa_scores = []
+f1_scores = []
+recall_scores = []
+precision_scores = []
 
-#Model Fit and Evaluation
-model.fit(X, y, epochs=150, batch_size=10)
-_, accuracy = model.evaluate(X_test, y_test)
+# Perform nested cross-validation
+for train_index, val_index in cv_outer.split(X, y):
+    X_train_fold, X_val_fold = X.loc[train_index], X.loc[val_index]
+    y_train_fold, y_val_fold = y.loc[train_index], y.loc[val_index]
 
-print('Accuracy: %.2f' % (accuracy*100))
+    # Create a function for Model 2
+    def create_model():
+        model = Sequential()
+        model.add(Dense(units=64, activation='tanh', input_shape=(20,), kernel_regularizer=l2(0.01)))
+        model.add(Dense(units=64, activation='tanh', kernel_regularizer=l2(0.01)))
+        model.add(Dense(units=1, activation='sigmoid', kernel_regularizer=l2(0.01)))
+        model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
+        return model
+
+    # Create the model
+    model = create_model()
+
+    # Fit the model on the training data
+    model.fit(X_train_fold, y_train_fold, epochs=10, batch_size=32, verbose=0)
+
+    # Predict on validation data
+    y_pred = model.predict(X_val_fold)
+
+    # Convert probabilities to binary predictions
+    y_pred_binary = np.round(y_pred)
+
+    # Calculate evaluation metrics
+    accuracy = model.evaluate(X_val_fold, y_val_fold, verbose=0)[1]
+    confusion_matrix_val = confusion_matrix(y_val_fold, y_pred_binary)
+    auc_pr = average_precision_score(y_val_fold, y_pred)
+    cohen_kappa = cohen_kappa_score(y_val_fold, y_pred_binary)
+    f1 = f1_score(y_val_fold, y_pred_binary)
+    recall = recall_score(y_val_fold, y_pred_binary)
+    precision = precision_score(y_val_fold, y_pred_binary)
+
+    accuracy_scores.append(accuracy)
+    confusion_matrices.append(confusion_matrix_val)
+    auc_pr_scores.append(auc_pr)
+    cohen_kappa_scores.append(cohen_kappa)
+    f1_scores.append(f1)
+    recall_scores.append(recall)
+    precision_scores.append(precision)
+
+# Calculate mean values for evaluation metrics across all folds
+mean_accuracy = np.mean(accuracy_scores)
+mean_auc_pr = np.mean(auc_pr_scores)
+mean_cohen_kappa = np.mean(cohen_kappa_scores)
+mean_f1 = np.mean(f1_scores)
+mean_recall = np.mean(recall_scores)
+mean_precision = np.mean(precision_scores)
+
+print(f"Mean Accuracy: {mean_accuracy:.4f}")
+print(f"Mean AUC-PR: {mean_auc_pr:.4f}")
+print(f"Mean Cohen's Kappa: {mean_cohen_kappa:.4f}")
+print(f"Mean F1-Score: {mean_f1:.4f}")
+print(f"Mean Recall: {mean_recall:.4f}")
+print(f"Mean Precision: {mean_precision:.4f}")
+
+######################################################### Model 3 ###############################################
+# Reset indices of the dataset
+dataset.reset_index(drop=True, inplace=True)
+
+# split into input (X) and output (Y) variables
+X = dataset.drop(['HeartDisease'], axis=1)
+y = dataset['HeartDisease']
+
+# Initialize 10-fold StratifiedKFold cross-validation
+cv_outer = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+
+# Lists to store evaluation metrics for each fold
+accuracy_scores = []
+confusion_matrices = []
+auc_pr_scores = []
+cohen_kappa_scores = []
+f1_scores = []
+recall_scores = []
+precision_scores = []
+
+# Perform nested cross-validation
+for train_index, val_index in cv_outer.split(X, y):
+    X_train_fold, X_val_fold = X.loc[train_index], X.loc[val_index]
+    y_train_fold, y_val_fold = y.loc[train_index], y.loc[val_index]
+
+    # Create a function for Model 3
+    def create_model():
+        model = Sequential()
+        model.add(Dense(units=256, activation='relu', input_shape=(20,)))
+        model.add(Dense(units=128, activation='relu', kernel_regularizer=l2(0.01)))
+        model.add(Dense(units=1, activation='sigmoid', kernel_regularizer=l2(0.01)))
+        model.compile(optimizer='sgd', loss='binary_crossentropy', metrics=['accuracy'])
+        return model
+
+    # Create the model
+    model = create_model()
+
+    # Fit the model on the training data
+    model.fit(X_train_fold, y_train_fold, epochs=10, batch_size=32, verbose=0)
+
+    # Predict on validation data
+    y_pred = model.predict(X_val_fold)
+
+    # Convert probabilities to binary predictions
+    y_pred_binary = np.round(y_pred)
+
+    # Calculate evaluation metrics
+    accuracy = model.evaluate(X_val_fold, y_val_fold, verbose=0)[1]
+    confusion_matrix_val = confusion_matrix(y_val_fold, y_pred_binary)
+    auc_pr = average_precision_score(y_val_fold, y_pred)
+    cohen_kappa = cohen_kappa_score(y_val_fold, y_pred_binary)
+    f1 = f1_score(y_val_fold, y_pred_binary)
+    recall = recall_score(y_val_fold, y_pred_binary)
+    precision = precision_score(y_val_fold, y_pred_binary)
+
+    accuracy_scores.append(accuracy)
+    confusion_matrices.append(confusion_matrix_val)
+    auc_pr_scores.append(auc_pr)
+    cohen_kappa_scores.append(cohen_kappa)
+    f1_scores.append(f1)
+    recall_scores.append(recall)
+    precision_scores.append(precision)
+
+# Calculate mean values for evaluation metrics across all folds
+mean_accuracy = np.mean(accuracy_scores)
+mean_auc_pr = np.mean(auc_pr_scores)
+mean_cohen_kappa = np.mean(cohen_kappa_scores)
+mean_f1 = np.mean(f1_scores)
+mean_recall = np.mean(recall_scores)
+mean_precision = np.mean(precision_scores)
+
+print(f"Mean Accuracy: {mean_accuracy:.4f}")
+print(f"Mean AUC-PR: {mean_auc_pr:.4f}")
+print(f"Mean Cohen's Kappa: {mean_cohen_kappa:.4f}")
+print(f"Mean F1-Score: {mean_f1:.4f}")
+print(f"Mean Recall: {mean_recall:.4f}")
+print(f"Mean Precision: {mean_precision:.4f}")
 
 
+######################################################### Model 4 ###############################################
+# Reset indices of the dataset
+dataset.reset_index(drop=True, inplace=True)
+
+# split into input (X) and output (Y) variables
+X = dataset.drop(['HeartDisease'], axis=1)
+y = dataset['HeartDisease']
+
+# Initialize 10-fold StratifiedKFold cross-validation
+cv_outer = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+
+# Lists to store evaluation metrics for each fold
+accuracy_scores = []
+confusion_matrices = []
+auc_pr_scores = []
+cohen_kappa_scores = []
+f1_scores = []
+recall_scores = []
+precision_scores = []
+
+# Perform nested cross-validation
+for train_index, val_index in cv_outer.split(X, y):
+    X_train_fold, X_val_fold = X.loc[train_index], X.loc[val_index]
+    y_train_fold, y_val_fold = y.loc[train_index], y.loc[val_index]
+
+    # Create a function for Model 4
+    def create_model():
+        model = Sequential()
+        model.add(Dense(units=128, activation='elu', input_shape=(20,)))
+        model.add(Dense(units=64, activation='elu', kernel_regularizer=l2(0.01)))
+        model.add(Dense(units=1, activation='sigmoid', kernel_regularizer=l2(0.01)))
+        model.compile(optimizer='adagrad', loss='binary_crossentropy', metrics=['accuracy'])
+        return model
+
+    # Create the model
+    model = create_model()
+
+   # Create the model
+    model = create_model()
+
+    # Fit the model on the training data
+    model.fit(X_train_fold, y_train_fold, epochs=10, batch_size=32, verbose=0)
+
+    # Predict on validation data
+    y_pred = model.predict(X_val_fold)
+
+    # Convert probabilities to binary predictions
+    y_pred_binary = np.round(y_pred)
+
+    # Calculate evaluation metrics
+    accuracy = model.evaluate(X_val_fold, y_val_fold, verbose=0)[1]
+    confusion_matrix_val = confusion_matrix(y_val_fold, y_pred_binary)
+    auc_pr = average_precision_score(y_val_fold, y_pred)
+    cohen_kappa = cohen_kappa_score(y_val_fold, y_pred_binary)
+    f1 = f1_score(y_val_fold, y_pred_binary)
+    recall = recall_score(y_val_fold, y_pred_binary)
+    precision = precision_score(y_val_fold, y_pred_binary)
+
+    accuracy_scores.append(accuracy)
+    confusion_matrices.append(confusion_matrix_val)
+    auc_pr_scores.append(auc_pr)
+    cohen_kappa_scores.append(cohen_kappa)
+    f1_scores.append(f1)
+    recall_scores.append(recall)
+    precision_scores.append(precision)
+
+# Calculate mean values for evaluation metrics across all folds
+mean_accuracy = np.mean(accuracy_scores)
+mean_auc_pr = np.mean(auc_pr_scores)
+mean_cohen_kappa = np.mean(cohen_kappa_scores)
+mean_f1 = np.mean(f1_scores)
+mean_recall = np.mean(recall_scores)
+mean_precision = np.mean(precision_scores)
+
+print(f"Mean Accuracy: {mean_accuracy:.4f}")
+print(f"Mean AUC-PR: {mean_auc_pr:.4f}")
+print(f"Mean Cohen's Kappa: {mean_cohen_kappa:.4f}")
+print(f"Mean F1-Score: {mean_f1:.4f}")
+print(f"Mean Recall: {mean_recall:.4f}")
+print(f"Mean Precision: {mean_precision:.4f}")
+
+# Reset indices of the dataset
+dataset.reset_index(drop=True, inplace=True)
+
+# split into input (X) and output (Y) variables
+X = dataset.drop(['HeartDisease'], axis=1)
+y = dataset['HeartDisease']
+
+# Initialize 10-fold StratifiedKFold cross-validation
+cv_outer = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+
+# Lists to store evaluation metrics for each fold
+accuracy_scores = []
+confusion_matrices = []
+auc_pr_scores = []
+cohen_kappa_scores = []
+f1_scores = []
+recall_scores = []
+precision_scores = []
+
+# Perform nested cross-validation
+for train_index, val_index in cv_outer.split(X, y):
+    X_train_fold, X_val_fold = X.loc[train_index], X.loc[val_index]
+    y_train_fold, y_val_fold = y.loc[train_index], y.loc[val_index]
+
+    # Create a function for Model 5
+    def create_model():
+        model = Sequential()
+        model.add(Dense(units=128, activation='softmax', input_shape=(20,)))
+        model.add(Dense(units=64, activation='softmax', kernel_regularizer=l2(0.01)))
+        model.add(Dense(units=32, activation='softmax', kernel_regularizer=l2(0.01)))
+        model.add(Dense(units=1, activation='sigmoid', kernel_regularizer=l2(0.01)))
+        model.compile(optimizer='adamax', loss='binary_crossentropy', metrics=['accuracy'])
+        return model
+
+    # Create the model
+    model = create_model()
+
+    # Create the model
+    model = create_model()
+
+    # Fit the model on the training data
+    model.fit(X_train_fold, y_train_fold, epochs=10, batch_size=32, verbose=0)
+
+    # Predict on validation data
+    y_pred = model.predict(X_val_fold)
+
+    # Convert probabilities to binary predictions
+    y_pred_binary = np.round(y_pred)
+
+    # Calculate evaluation metrics
+    accuracy = model.evaluate(X_val_fold, y_val_fold, verbose=0)[1]
+    confusion_matrix_val = confusion_matrix(y_val_fold, y_pred_binary)
+    auc_pr = average_precision_score(y_val_fold, y_pred)
+    cohen_kappa = cohen_kappa_score(y_val_fold, y_pred_binary)
+    f1 = f1_score(y_val_fold, y_pred_binary)
+    recall = recall_score(y_val_fold, y_pred_binary)
+    precision = precision_score(y_val_fold, y_pred_binary)
+
+    accuracy_scores.append(accuracy)
+    confusion_matrices.append(confusion_matrix_val)
+    auc_pr_scores.append(auc_pr)
+    cohen_kappa_scores.append(cohen_kappa)
+    f1_scores.append(f1)
+    recall_scores.append(recall)
+    precision_scores.append(precision)
+
+# Calculate mean values for evaluation metrics across all folds
+mean_accuracy = np.mean(accuracy_scores)
+mean_auc_pr = np.mean(auc_pr_scores)
+mean_cohen_kappa = np.mean(cohen_kappa_scores)
+mean_f1 = np.mean(f1_scores)
+mean_recall = np.mean(recall_scores)
+mean_precision = np.mean(precision_scores)
+
+print(f"Mean Accuracy: {mean_accuracy:.4f}")
+print(f"Mean AUC-PR: {mean_auc_pr:.4f}")
+print(f"Mean Cohen's Kappa: {mean_cohen_kappa:.4f}")
+print(f"Mean F1-Score: {mean_f1:.4f}")
+print(f"Mean Recall: {mean_recall:.4f}")
+print(f"Mean Precision: {mean_precision:.4f}")
