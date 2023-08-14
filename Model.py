@@ -206,6 +206,25 @@ print(f"Mean F1-Score: {mean_f1:.4f}")
 print(f"Mean Recall: {mean_recall:.4f}")
 print(f"Mean Precision: {mean_precision:.4f}")
 
+# Print Confusion Matrix for Model 1
+print("\nConfusion Matrix - Model 1:")
+mean_confusion_matrix = np.mean(confusion_matrices, axis=0)
+print(mean_confusion_matrix)
+
+# Visualise Confusion matrix - Define the confusion matrix values 
+conf_matrix = mean_confusion_matrix
+
+# Define class labels
+class_labels = ['Negative', 'Positive']
+
+# Create a heatmap
+py.figure(figsize=(8, 6))
+sns.heatmap(conf_matrix, annot=True, fmt='.1f', cmap='Blues', xticklabels=class_labels, yticklabels=class_labels)
+py.xlabel('Predicted Labels')
+py.ylabel('True Labels')
+py.title('Model 1 Confusion Matrix')
+py.show()
+
 ######################################################### Model 2 ###############################################
 from keras.regularizers import l2
 from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, cohen_kappa_score, roc_auc_score, average_precision_score
@@ -291,6 +310,25 @@ print(f"Mean F1-Score: {mean_f1:.4f}")
 print(f"Mean Recall: {mean_recall:.4f}")
 print(f"Mean Precision: {mean_precision:.4f}")
 
+# Print Confusion Matrix for Model 2
+print("\nConfusion Matrix - Model 2:")
+mean_confusion_matrix = np.mean(confusion_matrices, axis=0)
+print(mean_confusion_matrix)
+
+# Visualise Confusion matrix - Define the confusion matrix values 
+conf_matrix = mean_confusion_matrix
+
+# Define class labels
+class_labels = ['Negative', 'Positive']
+
+# Create a heatmap
+py.figure(figsize=(8, 6))
+sns.heatmap(conf_matrix, annot=True, fmt='.1f', cmap='Blues', xticklabels=class_labels, yticklabels=class_labels)
+py.xlabel('Predicted Labels')
+py.ylabel('True Labels')
+py.title('Model 2 Confusion Matrix')
+py.show()
+
 ######################################################### Model 3 ###############################################
 # Reset indices of the dataset
 dataset.reset_index(drop=True, inplace=True)
@@ -368,6 +406,25 @@ print(f"Mean Cohen's Kappa: {mean_cohen_kappa:.4f}")
 print(f"Mean F1-Score: {mean_f1:.4f}")
 print(f"Mean Recall: {mean_recall:.4f}")
 print(f"Mean Precision: {mean_precision:.4f}")
+
+# Print Confusion Matrix for Model 3
+print("\nConfusion Matrix - Model 3:")
+mean_confusion_matrix = np.mean(confusion_matrices, axis=0)
+print(mean_confusion_matrix)
+
+# Visualise Confusion matrix - Define the confusion matrix values 
+conf_matrix = mean_confusion_matrix
+
+# Define class labels
+class_labels = ['Negative', 'Positive']
+
+# Create a heatmap
+py.figure(figsize=(8, 6))
+sns.heatmap(conf_matrix, annot=True, fmt='.1f', cmap='Blues', xticklabels=class_labels, yticklabels=class_labels)
+py.xlabel('Predicted Labels')
+py.ylabel('True Labels')
+py.title('Model 3 Confusion Matrix')
+py.show()
 
 
 ######################################################### Model 4 ###############################################
@@ -451,6 +508,29 @@ print(f"Mean F1-Score: {mean_f1:.4f}")
 print(f"Mean Recall: {mean_recall:.4f}")
 print(f"Mean Precision: {mean_precision:.4f}")
 
+# Print Confusion Matrix for Model 4
+print("\nConfusion Matrix - Model 4:")
+mean_confusion_matrix = np.mean(confusion_matrices, axis=0)
+print(mean_confusion_matrix)
+
+# Visualise Confusion matrix - Define the confusion matrix values 
+conf_matrix = mean_confusion_matrix
+
+# Define class labels
+class_labels = ['Negative', 'Positive']
+
+# Create a heatmap
+py.figure(figsize=(8, 6))
+sns.heatmap(conf_matrix, annot=True, fmt='.1f', cmap='Blues', xticklabels=class_labels, yticklabels=class_labels)
+py.xlabel('Predicted Labels')
+py.ylabel('True Labels')
+py.title('Model 4 Confusion Matrix')
+py.show()
+
+
+######################################################### Model 5 ###############################################
+from sklearn.metrics import confusion_matrix
+
 # Reset indices of the dataset
 dataset.reset_index(drop=True, inplace=True)
 
@@ -531,3 +611,22 @@ print(f"Mean Cohen's Kappa: {mean_cohen_kappa:.4f}")
 print(f"Mean F1-Score: {mean_f1:.4f}")
 print(f"Mean Recall: {mean_recall:.4f}")
 print(f"Mean Precision: {mean_precision:.4f}")
+
+# Print Confusion Matrix for Model 5
+print("\nConfusion Matrix - Model 5:")
+mean_confusion_matrix = np.mean(confusion_matrices, axis=0)
+print(mean_confusion_matrix)
+
+# Visualise Confusion matrix - Define the confusion matrix values 
+conf_matrix = mean_confusion_matrix
+
+# Define class labels
+class_labels = ['Negative', 'Positive']
+
+# Create a heatmap
+py.figure(figsize=(8, 6))
+sns.heatmap(conf_matrix, annot=True, fmt='.1f', cmap='Blues', xticklabels=class_labels, yticklabels=class_labels)
+py.xlabel('Predicted Labels')
+py.ylabel('True Labels')
+py.title('Model 5 Confusion Matrix')
+py.show()
