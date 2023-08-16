@@ -630,3 +630,148 @@ py.xlabel('Predicted Labels')
 py.ylabel('True Labels')
 py.title('Model 5 Confusion Matrix')
 py.show()
+
+################################################################################# Hyper Paramter Tuning #################################################################################
+from keras.regularizers import l2
+from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score, cohen_kappa_score, roc_auc_score, average_precision_score
+import numpy as np
+from sklearn.model_selection import StratifiedKFold
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, BatchNormalization
+from keras.optimizers import RMSprop, Adam
+from keras.callbacks import EarlyStopping, LearningRateScheduler
+from sklearn.utils.class_weight import compute_class_weight
+import seaborn as sns
+import matplotlib.pyplot as plt
+from kerastuner.tuners import RandomSearch
+
+# Reset indices of the dataset
+dataset.reset_index(drop=True, inplace=True)
+
+# Split into input (X) and output (y) variables
+X = dataset.drop(['HeartDisease'], axis=1)
+y = dataset['HeartDisease']
+
+# Initialize 10-fold StratifiedKFold cross-validation
+cv_outer = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+
+# Lists to store evaluation metrics for each fold
+accuracy_scores = []
+precision_scores = []
+recall_scores = []
+f1_scores = []
+cohen_kappa_scores = []
+roc_auc_scores = []
+auc_pr_scores = []
+confusion_matrices = []
+
+# Perform nested cross-validation
+for train_index, val_index in cv_outer.split(X, y):
+    X_train_fold, X_val_fold = X.loc[train_index], X.loc[val_index]
+    y_train_fold, y_val_fold = y.loc[train_index], y.loc[val_index]
+
+    # Compute class weights
+    class_weights = compute_class_weight('balanced', classes=np.unique(y_train_fold), y=y_train_fold)
+    class_weight_dict = {i: class_weights[i] for i in range(len(class_weights))}
+
+    # Create a function for Model 1
+    def create_model(hp):
+        model = Sequential()
+        model.add(Dense(units=hp.Int('units_1', min_value=32, max_value=256, step=32), activation=hp.Choice('activation_1', values=['relu', 'tanh']), input_shape=(20,), kernel_regularizer=l2(0.01)))
+        model.add(Dense(units=hp.Int('units_2', min_value=32, max_value=256, step=32), activation=hp.Choice('activation_2', values=['relu', 'tanh']), kernel_regularizer=l2(0.01)))
+        model.add(Dense(units=hp.Int('units_3', min_value=32, max_value=256, step=32), activation=hp.Choice('activation_3', values=['relu', 'tanh']), kernel_regularizer=l2(0.01)))
+        model.add(Dense(units=1, activation='sigmoid'))
+
+        optimizer_choice = hp.Choice('optimizer', values=['RMSprop', 'adam'])
+        if optimizer_choice == 'RMSprop':
+            optimizer = RMSprop(learning_rate=hp.Float('learning_rate', min_value=1e-4, max_value=1e-2, sampling='log'))
+        else:
+            optimizer = Adam(learning_rate=hp.Float('learning_rate', min_value=1e-4, max_value=1e-2, sampling='log'))
+
+        model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
+        return model
+
+    # Implement Early Stopping and Learning Rate Scheduling
+    early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+    lr_scheduler_cb = LearningRateScheduler(lambda epoch, lr: lr * 0.95 if epoch % 2 == 0 else lr)
+
+    # Hyperparameter tuning using RandomSearch from keras-tuner
+    tuner = RandomSearch(
+        create_model,
+        objective='val_accuracy',
+        max_trials=5,
+        executions_per_trial=1,
+        directory='my_dir',
+        project_name='heart_disease_tuning'
+    )
+
+    tuner.search(X_train_fold, y_train_fold, epochs=20, validation_data=(X_val_fold, y_val_fold),
+                 callbacks=[early_stopping, lr_scheduler_cb], class_weight=class_weight_dict)
+
+    best_model = tuner.get_best_models(num_models=1)[0]
+
+    # Print details of the best model
+    print("Best Model Summary:")
+    best_model.summary()
+
+    # Print the best hyperparameters chosen by the tuner
+    best_hp = tuner.get_best_hyperparameters()[0]
+    print("Best Hyperparameters:")
+    print(best_hp)
+
+    # Predict on validation data
+    y_pred = best_model.predict(X_val_fold)
+
+    # Convert probabilities to binary predictions
+    y_pred_binary = np.round(y_pred)
+
+    # Calculate evaluation metrics
+    accuracy = accuracy_score(y_val_fold, y_pred_binary)
+    precision = precision_score(y_val_fold, y_pred_binary)
+    recall = recall_score(y_val_fold, y_pred_binary)
+    f1 = f1_score(y_val_fold, y_pred_binary)
+    cohen_kappa = cohen_kappa_score(y_val_fold, y_pred_binary)
+    roc_auc = roc_auc_score(y_val_fold, y_pred)
+    auc_pr = average_precision_score(y_val_fold, y_pred)
+
+    accuracy_scores.append(accuracy)
+    precision_scores.append(precision)
+    recall_scores.append(recall)
+    f1_scores.append(f1)
+    cohen_kappa_scores.append(cohen_kappa)
+    roc_auc_scores.append(roc_auc)
+    auc_pr_scores.append(auc_pr)
+    confusion_matrices.append(confusion_matrix(y_val_fold, y_pred_binary))
+
+# Calculate mean evaluation metrics across all folds
+mean_accuracy = np.mean(accuracy_scores)
+mean_precision = np.mean(precision_scores)
+mean_recall = np.mean(recall_scores)
+mean_f1 = np.mean(f1_scores)
+mean_cohen_kappa = np.mean(cohen_kappa_scores)
+mean_roc_auc = np.mean(roc_auc_scores)
+mean_auc_pr = np.mean(auc_pr_scores)
+
+print(f"Mean Accuracy: {mean_accuracy:.4f}")
+print(f"Mean Precision: {mean_precision:.4f}")
+print(f"Mean Recall: {mean_recall:.4f}")
+print(f"Mean F1-Score: {mean_f1:.4f}")
+print(f"Mean Cohen's Kappa: {mean_cohen_kappa:.4f}")
+print(f"Mean ROC AUC: {mean_roc_auc:.4f}")
+print(f"Mean AUC-PR: {mean_auc_pr:.4f}")
+
+# Print Confusion Matrix for Best Model
+print("\nConfusion Matrix - Best Model:")
+mean_confusion_matrix = np.mean(confusion_matrices, axis=0)
+print(mean_confusion_matrix)
+
+# Visualize Confusion matrix
+class_labels = ['Negative', 'Positive']
+plt.figure(figsize=(8, 6))
+sns.heatmap(mean_confusion_matrix, annot=True, fmt='.1f', cmap='Blues', xticklabels=class_labels, yticklabels=class_labels)
+plt.xlabel('Predicted Labels')
+plt.ylabel('True Labels')
+plt.title('Best Model Confusion Matrix')
+plt.show()
+
+
